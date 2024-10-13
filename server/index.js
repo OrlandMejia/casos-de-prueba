@@ -5,6 +5,9 @@ const app = express();
 const mysql = require("mysql");
 const cors = require("cors");
 
+//para encriptar mis contraseñas
+const bcrypt = require('bcrypt');
+
 //indicar a la aplicacion antes de ejecutar cualquier cosa debe usar
 app.use(cors());
 app.use(express.json());
@@ -14,30 +17,40 @@ const db = mysql.createConnection({
     host:"localhost",
     user:"root",
     password:"",
-    database:"testers"
+    database:"testing"
 });
 
-//creamos la peticion para guardar
-app.post("/create", (req, res) => {
-    const codigo = req.body.codigo;
-    const nombre = req.body.nombre;
-    const descripcion = req.body.descripcion;
-    const nivel_importancia = req.body.nivel;
-    const id_usuario_asignado = req.body.asignar;
-    const nombre_proyecto = req.body.nombre_proyecto; // Agregar el campo faltante
-    const fecha_creacion = req.body.fecha_creacion;
+// Creación de la petición para registrar un nuevo usuario
+app.post("/register-user", async (req, res) => {
+    const { codigo, nombre, correo, password, confirmPassword, rol } = req.body; // Obtener los datos del usuario
 
-    db.query('INSERT INTO test_case(codigo, nombre, descripcion, nivel_importancia, nombre_proyecto, id_usuario_asignado, fecha_asignacion) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [codigo, nombre, descripcion, nivel_importancia, nombre_proyecto, id_usuario_asignado, fecha_creacion], // datos que enviaremos
-        (err, result) => {
-            if (err) {
-                console.log(err);
-            } else {
-                res.send("Caso Registrado con Éxito");
+    // Comprobar si las contraseñas coinciden
+    if (password !== confirmPassword) {
+        return res.status(400).send("Las contraseñas no coinciden"); // Enviar error si no coinciden
+    }
+
+    try {
+        // Hashear la contraseña
+        const hashedPassword = await bcrypt.hash(password, 10); // 10 es el número de rondas de sal
+
+        db.query(
+            'INSERT INTO users(codigo, nombre_completo, correo, password, rol) VALUES (?, ?, ?, ?, ?)',
+            [codigo, nombre, correo, hashedPassword, rol], // Usar la contraseña hasheada
+            (err, result) => {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).send("Error al registrar el usuario"); // Enviar error si ocurre
+                }
+                res.send("Usuario Registrado con Éxito"); // Enviar respuesta de éxito
             }
-        }
-    );
+        );
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Error al hashear la contraseña"); // Enviar error si ocurre al hashear
+    }
 });
+
+
 
 // peticion para mostrar a los usuarios para asignarlos
 // Obtener usuarios con rol QA
